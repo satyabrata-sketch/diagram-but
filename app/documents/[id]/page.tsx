@@ -20,6 +20,7 @@ import {
   FileCheck,
   Eye,
 } from 'lucide-react';
+import ExcelViewer from '@/components/ExcelViewer';
 
 export default function DocumentDetailPage() {
   const { id } = useParams() as { id: string };
@@ -99,6 +100,9 @@ export default function DocumentDetailPage() {
   const getFileType = (url: string | null) => {
     if (!url) return 'none';
     const cleanUrl = url.split('?')[0].toLowerCase();
+    if (cleanUrl.match(/\.(xlsx|xls|csv)$/)) {
+      return 'excel';
+    }
     if (cleanUrl.match(/\.(png|jpe?g|svg|webp|gif)$/)) {
       return 'image';
     }
@@ -261,6 +265,8 @@ export default function DocumentDetailPage() {
                   <FileText className="h-6 w-6 text-zinc-300 mb-1" />
                   <span>No file was attached to this document.</span>
                 </div>
+              ) : fileType === 'excel' ? (
+                <ExcelViewer fileUrl={document.file_url} title={document.title} />
               ) : fileType === 'image' ? (
                 <div className="space-y-3">
                   <div className="overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50 flex items-center justify-center p-2">

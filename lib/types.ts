@@ -17,7 +17,7 @@ export interface UserProfile {
   created_at: string;
 }
 
-export type DocumentCategory = 'Diagram' | 'Document' | 'Image' | 'PDF' | 'Other';
+export type DocumentCategory = 'Diagram' | 'Document' | 'Image' | 'PDF' | 'Excel' | 'Other';
 
 export interface DocumentItem {
   id: string;

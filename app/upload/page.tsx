@@ -9,6 +9,7 @@ import { DocumentCategory } from '@/lib/types';
 import {
   UploadCloud,
   FileText,
+  FileSpreadsheet,
   CheckCircle2,
   AlertCircle,
   Loader2,
@@ -18,7 +19,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 
-const CATEGORIES: DocumentCategory[] = ['Diagram', 'Document', 'Image', 'PDF', 'Other'];
+const CATEGORIES: DocumentCategory[] = ['Diagram', 'Document', 'Image', 'PDF', 'Excel', 'Other'];
 
 export default function UploadPage() {
   const { user } = useAuth();
@@ -42,7 +43,9 @@ export default function UploadPage() {
 
       // Auto-suggest category if default
       const ext = file.name.split('.').pop()?.toLowerCase();
-      if (ext === 'pdf') {
+      if (['xlsx', 'xls', 'csv'].includes(ext || '')) {
+        setCategory('Excel');
+      } else if (ext === 'pdf') {
         setCategory('PDF');
       } else if (['png', 'jpg', 'jpeg', 'svg', 'webp', 'gif'].includes(ext || '')) {
         setCategory('Image');
@@ -263,7 +266,7 @@ export default function UploadPage() {
             {/* File Upload Zone */}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-600 mb-1.5">
-                File Attachment (PDF / Image / Doc)
+                File Attachment (Excel / PDF / Image / Doc)
               </label>
 
               {!selectedFile ? (
@@ -275,20 +278,24 @@ export default function UploadPage() {
                     Click to browse or drag file here
                   </span>
                   <span className="mt-1 text-[11px] text-zinc-400">
-                    Supports PDF, PNG, JPG, SVG, DOC, TXT (Supabase bucket: uploads)
+                    Supports Excel (.xlsx, .xls, .csv), PDF, Images, Word, Text
                   </span>
                   <input
                     type="file"
                     className="hidden"
                     onChange={handleFileChange}
-                    accept=".pdf,.png,.jpg,.jpeg,.svg,.webp,.gif,.doc,.docx,.txt,.json,.drawio,.xml"
+                    accept=".xlsx,.xls,.csv,.pdf,.png,.jpg,.jpeg,.svg,.webp,.gif,.doc,.docx,.txt,.json,.drawio,.xml"
                   />
                 </label>
               ) : (
                 <div className="flex items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50 p-3">
                   <div className="flex items-center gap-3">
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-200 text-zinc-700">
-                      <FileText className="h-4 w-4" />
+                      {selectedFile.name.match(/\.(xlsx|xls|csv)$/i) ? (
+                        <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
+                      ) : (
+                        <FileText className="h-4 w-4" />
+                      )}
                     </div>
                     <div>
                       <p className="text-xs font-semibold text-zinc-800 line-clamp-1">
