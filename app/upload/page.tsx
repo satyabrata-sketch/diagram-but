@@ -10,6 +10,8 @@ import {
   UploadCloud,
   FileText,
   FileSpreadsheet,
+  Archive,
+  FolderUp,
   CheckCircle2,
   AlertCircle,
   Loader2,
@@ -18,8 +20,9 @@ import {
   FileUp,
 } from 'lucide-react';
 import Link from 'next/link';
+import JSZip from 'jszip';
 
-const CATEGORIES: DocumentCategory[] = ['Diagram', 'Document', 'Image', 'PDF', 'Excel', 'Other'];
+const CATEGORIES: DocumentCategory[] = ['Diagram', 'Document', 'Image', 'PDF', 'Excel', 'Archive', 'Other'];
 
 export default function UploadPage() {
   const { user } = useAuth();
@@ -31,6 +34,8 @@ export default function UploadPage() {
   const [summary, setSummary] = useState('');
   const [content, setContent] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isZippingFolder, setIsZippingFolder] = useState(false);
+  const [folderInfo, setFolderInfo] = useState<{ name: string; count: number } | null>(null);
 
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,10 +45,13 @@ export default function UploadPage() {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setSelectedFile(file);
+      setFolderInfo(null);
 
-      // Auto-suggest category if default
+      // Auto-suggest category
       const ext = file.name.split('.').pop()?.toLowerCase();
-      if (['xlsx', 'xls', 'csv'].includes(ext || '')) {
+      if (['zip', 'tar', 'gz', '7z', 'rar'].includes(ext || '')) {
+        setCategory('Archive');
+      } else if (['xlsx', 'xls', 'csv'].includes(ext || '')) {
         setCategory('Excel');
       } else if (ext === 'pdf') {
         setCategory('PDF');
@@ -53,8 +61,47 @@ export default function UploadPage() {
     }
   };
 
+  const handleFolderChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const files = Array.from(e.target.files);
+
+    setIsZippingFolder(true);
+    setError(null);
+
+    try {
+      const zip = new JSZip();
+      let rootFolderName = 'folder_archive';
+
+      files.forEach((file) => {
+        // webkitRelativePath contains "foldername/subfolder/filename"
+        const relativePath = (file as unknown as { webkitRelativePath?: string }).webkitRelativePath || file.name;
+        if (relativePath.includes('/')) {
+          rootFolderName = relativePath.split('/')[0];
+        }
+        zip.file(relativePath, file);
+      });
+
+      const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+      const packagedFile = new File([zipBlob], `${rootFolderName}.zip`, { type: 'application/zip' });
+
+      setSelectedFile(packagedFile);
+      setFolderInfo({ name: rootFolderName, count: files.length });
+      setCategory('Archive');
+
+      if (!title.trim()) {
+        setTitle(rootFolderName.replace(/[-_]/g, ' '));
+      }
+    } catch (err) {
+      console.error('Failed to bundle folder into zip archive', err);
+      setError('Failed to compress folder into ZIP archive.');
+    } finally {
+      setIsZippingFolder(false);
+    }
+  };
+
   const removeFile = () => {
     setSelectedFile(null);
+    setFolderInfo(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -263,38 +310,73 @@ export default function UploadPage() {
               />
             </div>
 
-            {/* File Upload Zone */}
+            {/* File & Folder Upload Zone */}
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-600 mb-1.5">
-                File Attachment (Excel / PDF / Image / Doc)
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-600">
+                  File Attachment (ZIP / Folder / Excel / PDF / Doc)
+                </label>
+                {isZippingFolder && (
+                  <span className="flex items-center gap-1.5 text-xs text-zinc-600 font-medium animate-pulse">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Packaging folder into ZIP...
+                  </span>
+                )}
+              </div>
 
               {!selectedFile ? (
-                <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-zinc-200 bg-zinc-50/50 p-6 transition-colors hover:border-zinc-300 hover:bg-zinc-50">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100 text-zinc-500 mb-2">
-                    <FileUp className="h-5 w-5" />
-                  </div>
-                  <span className="text-xs font-medium text-zinc-700">
-                    Click to browse or drag file here
-                  </span>
-                  <span className="mt-1 text-[11px] text-zinc-400">
-                    Supports Excel (.xlsx, .xls, .csv), PDF, Images, Word, Text
-                  </span>
-                  <input
-                    type="file"
-                    className="hidden"
-                    onChange={handleFileChange}
-                    accept=".xlsx,.xls,.csv,.pdf,.png,.jpg,.jpeg,.svg,.webp,.gif,.doc,.docx,.txt,.json,.drawio,.xml"
-                  />
-                </label>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {/* File / ZIP Upload Card */}
+                  <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-zinc-200 bg-zinc-50/50 p-6 transition-all hover:border-zinc-400 hover:bg-zinc-50 text-center">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100 text-zinc-600 mb-2">
+                      <FileUp className="h-5 w-5" />
+                    </div>
+                    <span className="text-xs font-semibold text-zinc-800">
+                      Upload File or ZIP
+                    </span>
+                    <span className="mt-1 text-[11px] text-zinc-400">
+                      Supports .zip, .xlsx, .pdf, images, docs
+                    </span>
+                    <input
+                      type="file"
+                      className="hidden"
+                      onChange={handleFileChange}
+                      accept=".zip,.tar,.gz,.7z,.rar,.xlsx,.xls,.csv,.pdf,.png,.jpg,.jpeg,.svg,.webp,.gif,.doc,.docx,.txt,.json,.drawio,.xml"
+                    />
+                  </label>
+
+                  {/* Folder Upload Card */}
+                  <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-zinc-200 bg-zinc-50/50 p-6 transition-all hover:border-zinc-400 hover:bg-zinc-50 text-center">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-50 text-amber-600 mb-2">
+                      <FolderUp className="h-5 w-5" />
+                    </div>
+                    <span className="text-xs font-semibold text-zinc-800">
+                      Upload Entire Folder
+                    </span>
+                    <span className="mt-1 text-[11px] text-zinc-400">
+                      Auto-bundles folder hierarchy into ZIP archive
+                    </span>
+                    <input
+                      type="file"
+                      className="hidden"
+                      onChange={handleFolderChange}
+                      multiple
+                      {...({ webkitdirectory: '', directory: '' } as Record<string, string>)}
+                    />
+                  </label>
+                </div>
               ) : (
-                <div className="flex items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+                <div className="flex items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50 p-3.5">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-200 text-zinc-700">
-                      {selectedFile.name.match(/\.(xlsx|xls|csv)$/i) ? (
-                        <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-zinc-200 text-zinc-700">
+                      {folderInfo ? (
+                        <Archive className="h-5 w-5 text-amber-600" />
+                      ) : selectedFile.name.match(/\.(zip|tar|gz|7z|rar)$/i) ? (
+                        <Archive className="h-5 w-5 text-amber-600" />
+                      ) : selectedFile.name.match(/\.(xlsx|xls|csv)$/i) ? (
+                        <FileSpreadsheet className="h-5 w-5 text-emerald-600" />
                       ) : (
-                        <FileText className="h-4 w-4" />
+                        <FileText className="h-5 w-5 text-zinc-600" />
                       )}
                     </div>
                     <div>
@@ -302,7 +384,9 @@ export default function UploadPage() {
                         {selectedFile.name}
                       </p>
                       <p className="text-[10px] text-zinc-400">
-                        {(selectedFile.size / 1024).toFixed(1)} KB
+                        {folderInfo
+                          ? `Bundled folder (${folderInfo.count} files) • ${(selectedFile.size / 1024).toFixed(1)} KB`
+                          : `${(selectedFile.size / 1024).toFixed(1)} KB`}
                       </p>
                     </div>
                   </div>

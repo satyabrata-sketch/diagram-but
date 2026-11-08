@@ -21,6 +21,7 @@ import {
   Eye,
 } from 'lucide-react';
 import ExcelViewer from '@/components/ExcelViewer';
+import ZipViewer from '@/components/ZipViewer';
 
 export default function DocumentDetailPage() {
   const { id } = useParams() as { id: string };
@@ -100,6 +101,9 @@ export default function DocumentDetailPage() {
   const getFileType = (url: string | null) => {
     if (!url) return 'none';
     const cleanUrl = url.split('?')[0].toLowerCase();
+    if (cleanUrl.match(/\.(zip|tar|gz|7z|rar)$/)) {
+      return 'archive';
+    }
     if (cleanUrl.match(/\.(xlsx|xls|csv)$/)) {
       return 'excel';
     }
@@ -265,6 +269,8 @@ export default function DocumentDetailPage() {
                   <FileText className="h-6 w-6 text-zinc-300 mb-1" />
                   <span>No file was attached to this document.</span>
                 </div>
+              ) : fileType === 'archive' ? (
+                <ZipViewer fileUrl={document.file_url} title={document.title} />
               ) : fileType === 'excel' ? (
                 <ExcelViewer fileUrl={document.file_url} title={document.title} />
               ) : fileType === 'image' ? (

@@ -20,7 +20,7 @@ import {
   FileBox,
 } from 'lucide-react';
 
-const CATEGORIES = ['All', 'Diagram', 'Document', 'Image', 'PDF', 'Excel', 'Other'] as const;
+const CATEGORIES = ['All', 'Diagram', 'Document', 'Image', 'PDF', 'Excel', 'Archive', 'Other'] as const;
 
 function DocumentsContent() {
   const { user, isAdmin } = useAuth();
